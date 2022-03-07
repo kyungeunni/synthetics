@@ -73,8 +73,21 @@ export class SyntheticsGenerator extends JavaScriptLanguageGenerator {
     this.previousContext = undefined;
   }
 
-  generateAction(actionInContext: ActionInContext) {
-    const { action, pageAlias, title } = actionInContext;
+  generateStep(step: ActionInContext[]) {
+    const formatter = new JavaScriptFormatter(this.isSuite ? 2 : 0);
+    formatter.add(
+      this.generateStepStart(step[0].title || actionTitle(step[0]))
+    );
+    for (let i = 0; i < step.length; i++) {
+      formatter.add(this.generateAction(step[i]), this.isSuite ? 4 : 2);
+    }
+    formatter.add(this.generateStepEnd());
+    return formatter.format();
+  }
+
+  generateAction(actionInContext: ActionInContext, indentation = 2) {
+    const formatter = new JavaScriptFormatter(indentation);
+    const { action, pageAlias } = actionInContext;
     if (action.name === 'openPage') {
       return '';
     }
@@ -82,18 +95,6 @@ export class SyntheticsGenerator extends JavaScriptLanguageGenerator {
     const isCleanUp = action.name === 'closePage' && pageAlias === 'page';
     if (isCleanUp) {
       return '';
-    }
-
-    let formatter = new JavaScriptFormatter(this.isSuite ? 2 : 0);
-    // Check if it's a new step
-    const isNewStep = this.isNewStep(actionInContext);
-    if (isNewStep) {
-      if (this.insideStep) {
-        formatter.add(this.generateStepEnd());
-      }
-      formatter.add(this.generateStepStart(title || actionTitle(action)));
-    } else {
-      formatter = new JavaScriptFormatter(this.isSuite ? 4 : 2);
     }
 
     const subject = actionInContext.isMainFrame
@@ -211,14 +212,14 @@ export class SyntheticsGenerator extends JavaScriptLanguageGenerator {
     return `});`;
   }
 
-  generateText(actions: Array<ActionInContext>) {
+  generateText(steps: ActionInContext[][]) {
+    console.log(steps);
     const text = [];
     if (this.isSuite) {
       text.push(this.generateHeader());
     }
-    for (let i = 0; i < actions.length; i++) {
-      text.push(this.generateAction(actions[i]));
-      if (i === actions.length - 1) text.push(this.generateStepEnd());
+    for (let i = 0; i < steps.length; i++) {
+      text.push(this.generateStep(steps[i]));
     }
     if (this.isSuite) {
       text.push(this.generateFooter());
